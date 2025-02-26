@@ -11,14 +11,19 @@ import java.awt.Dimension;
 import java.awt.Insets;
 import java.awt.LayoutManager;
 import java.awt.event.ActionEvent;
+import java.util.HashMap;
+import java.util.Map;
 import javax.swing.JButton;
 import javax.swing.JLayeredPane;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 import raven.application.Application;
 import raven.application.form.other.FormDashboard;
-import raven.application.form.other.FormInbox;
-import raven.application.form.other.FormRead;
+import raven.application.form.other.FormReportes;
+import raven.application.form.other.FormVentas;
+import dialog.Message;
+import raven.application.form.other.FormInventario;
+import raven.glasspanepopup.GlassPanePopup;
 import raven.menu.Menu;
 import raven.menu.MenuAction;
 
@@ -30,9 +35,11 @@ public class MainForm extends JLayeredPane {
 
     public MainForm() {
         init();
+
     }
 
     private void init() {
+
         setBorder(new EmptyBorder(5, 5, 5, 5));
         setLayout(new MainFormLayout());
         menu = new Menu();
@@ -51,6 +58,7 @@ public class MainForm extends JLayeredPane {
         add(menuButton);
         add(menu);
         add(panelBody);
+
     }
 
     @Override
@@ -68,20 +76,19 @@ public class MainForm extends JLayeredPane {
     }
 
     private void initMenuEvent() {
+        Map<Integer, Runnable> menuActions = new HashMap<>();
+        menuActions.put(0, () -> Application.showForm(new FormDashboard()));
+        menuActions.put(1, () -> Application.showForm(new FormInventario()));
+        menuActions.put(2, () -> Application.showForm(new FormVentas()));
+        menuActions.put(3, () -> Application.showForm(new FormReportes()));
+        menuActions.put(4, () -> {
+            GlassPanePopup.showPopup(new Message());
+        });
+
         menu.addMenuEvent((int index, int subIndex, MenuAction action) -> {
-            // Application.mainForm.showForm(new DefaultForm("Form : " + index + " " + subIndex));
-            if (index == 0) {
-                Application.showForm(new FormDashboard());
-            } else if (index == 1) {
-                if (subIndex == 1) {
-                    Application.showForm(new FormInbox());
-                } else if (subIndex == 2) {
-                    Application.showForm(new FormRead());
-                } else {
-                    action.cancel();
-                }
-            } else if (index == 9) {
-                Application.logout();
+            Runnable menuAction = menuActions.get(index);
+            if (menuAction != null) {
+                menuAction.run();
             } else {
                 action.cancel();
             }
@@ -98,10 +105,15 @@ public class MainForm extends JLayeredPane {
         menuButton.setIcon(new FlatSVGIcon("raven/icon/svg/" + icon, 0.8f));
         menu.setMenuFull(full);
         revalidate();
+
     }
 
     public void hideMenu() {
         menu.hideMenuItem();
+    }
+
+    public static void closeGlass() {
+        GlassPanePopup.closePopupLast();
     }
 
     public void showForm(Component component) {
@@ -146,6 +158,7 @@ public class MainForm extends JLayeredPane {
         @Override
         public void layoutContainer(Container parent) {
             synchronized (parent.getTreeLock()) {
+
                 boolean ltr = parent.getComponentOrientation().isLeftToRight();
                 Insets insets = UIScale.scale(parent.getInsets());
                 int x = insets.left;

@@ -5,6 +5,7 @@ import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
 import com.formdev.flatlaf.fonts.roboto.FlatRobotoFont;
 import com.formdev.flatlaf.themes.FlatMacDarkLaf;
+
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -12,6 +13,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import raven.application.form.LoginForm;
 import raven.application.form.MainForm;
+import raven.glasspanepopup.GlassPanePopup;
 import raven.toast.Notifications;
 
 /**
@@ -26,18 +28,27 @@ public class Application extends javax.swing.JFrame {
 
     public Application() {
         initComponents();
+        init();
         setSize(new Dimension(1366, 768));
         setLocationRelativeTo(null);
         mainForm = new MainForm();
         loginForm = new LoginForm();
         setContentPane(loginForm);
         getRootPane().putClientProperty(FlatClientProperties.FULL_WINDOW_CONTENT, true);
+
+    }
+
+    private void init() {
+        GlassPanePopup.install(this);
         Notifications.getInstance().setJFrame(this);
     }
+
+    
 
     public static void showForm(Component component) {
         component.applyComponentOrientation(app.getComponentOrientation());
         app.mainForm.showForm(component);
+
     }
 
     public static void login() {
@@ -46,6 +57,7 @@ public class Application extends javax.swing.JFrame {
         app.mainForm.applyComponentOrientation(app.getComponentOrientation());
         setSelectedMenu(0, 0);
         app.mainForm.hideMenu();
+
         SwingUtilities.updateComponentTreeUI(app.mainForm);
         FlatAnimatedLafChange.hideSnapshotWithAnimation();
     }
@@ -84,11 +96,14 @@ public class Application extends javax.swing.JFrame {
 
     public static void main(String args[]) {
         FlatRobotoFont.install();
+
         FlatLaf.registerCustomDefaultsSource("raven.theme");
         UIManager.put("defaultFont", new Font(FlatRobotoFont.FAMILY, Font.PLAIN, 13));
         FlatMacDarkLaf.setup();
+
         java.awt.EventQueue.invokeLater(() -> {
             app = new Application();
+
             //  app.applyComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT);
             app.setVisible(true);
         });

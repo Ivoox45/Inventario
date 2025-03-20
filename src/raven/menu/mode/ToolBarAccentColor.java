@@ -3,7 +3,6 @@ package raven.menu.mode;
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.icons.FlatAbstractIcon;
-import com.formdev.flatlaf.ui.FlatUIUtils;
 import com.formdev.flatlaf.util.ColorFunctions;
 import com.formdev.flatlaf.util.LoggingFacade;
 import com.formdev.flatlaf.util.UIScale;
@@ -12,6 +11,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Graphics2D;
 import java.awt.event.ActionEvent;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 import javax.swing.ButtonGroup;
 import javax.swing.JPanel;
@@ -24,13 +24,28 @@ import javax.swing.UIManager;
 import raven.menu.Menu;
 
 /**
- *
  * @author Raven
  */
 public class ToolBarAccentColor extends JPanel {
 
     private final Menu menu;
     private final JPopupMenu popup = new JPopupMenu();
+    private final String[] accentColorKeys = {
+        "App.accent.default", "App.accent.blue", "App.accent.purple", "App.accent.red",
+        "App.accent.orange", "App.accent.yellow", "App.accent.green"
+    };
+    private final String[] accentColorNames = {
+        "Default", "Blue", "Purple", "Red", "Orange", "Yellow", "Green"
+    };
+
+    private boolean menuFull = true;
+    private JToolBar toolbar;
+    private JToggleButton selectedButton;
+
+    public ToolBarAccentColor(Menu menu) {
+        this.menu = menu;
+        init();
+    }
 
     public boolean isMenuFull() {
         return menuFull;
@@ -46,19 +61,8 @@ public class ToolBarAccentColor extends JPanel {
             add(selectedButton);
             popup.add(toolbar);
         }
-        SwingUtilities.updateComponentTreeUI(this);
-    }
-
-    private final String[] accentColorKeys = {
-        "App.accent.default", "App.accent.blue", "App.accent.purple", "App.accent.red",
-        "App.accent.orange", "App.accent.yellow", "App.accent.green",};
-    private final String[] accentColorNames = {
-        "Default", "Blue", "Purple", "Red", "Orange", "Yellow", "Green",};
-    private boolean menuFull = true;
-
-    public ToolBarAccentColor(Menu menu) {
-        this.menu = menu;
-        init();
+        revalidate(); // <- Agregado para actualizar correctamente el layout
+        repaint();
     }
 
     public void show(Component com, int x, int y) {
@@ -75,27 +79,25 @@ public class ToolBarAccentColor extends JPanel {
         setLayout(new BorderLayout());
         toolbar = new JToolBar();
         add(toolbar);
-        putClientProperty(FlatClientProperties.STYLE, ""
-                + "background:$Menu.background");
-        toolbar.putClientProperty(FlatClientProperties.STYLE, ""
-                + "background:$Menu.background");
 
-        popup.putClientProperty(FlatClientProperties.STYLE, ""
-                + "background:$Menu.background;"
-                + "borderColor:$Menu.background;");
+        putClientProperty(FlatClientProperties.STYLE, "background:$Menu.background");
+        toolbar.putClientProperty(FlatClientProperties.STYLE, "background:$Menu.background");
+        popup.putClientProperty(FlatClientProperties.STYLE, "background:$Menu.background; borderColor:$Menu.background;");
+
         ButtonGroup group = new ButtonGroup();
+
+        // Crear botón de selección
         selectedButton = new JToggleButton(new AccentColorIcon(accentColorKeys[0]));
         selectedButton.addActionListener((ActionEvent e) -> {
             int y = (selectedButton.getPreferredSize().height - (toolbar.getPreferredSize().height + UIScale.scale(10))) / 2;
-            show(ToolBarAccentColor.this, (int) getWidth() + UIScale.scale(4), y);
+            show(ToolBarAccentColor.this, getWidth() + UIScale.scale(4), y);
         });
+
         for (int i = 0; i < accentColorNames.length; i++) {
             String key = accentColorKeys[i];
             JToggleButton tbutton = new JToggleButton(new AccentColorIcon(key));
             tbutton.setSelected(UIManager.getColor("Component.accentColor").equals(UIManager.getColor(key)));
-            tbutton.addActionListener((ActionEvent e) -> {
-                colorAccentChanged(key);
-            });
+            tbutton.addActionListener((ActionEvent e) -> colorAccentChanged(key));
             group.add(tbutton);
             toolbar.add(tbutton);
         }
@@ -107,12 +109,13 @@ public class ToolBarAccentColor extends JPanel {
         }
         Color color = UIManager.getColor(colorKey);
         selectedButton.setIcon(new AccentColorIcon(colorKey));
-        Class<? extends LookAndFeel> lafClass = UIManager.getLookAndFeel().getClass();
+
         try {
+            Class<? extends LookAndFeel> lafClass = UIManager.getLookAndFeel().getClass();
             FlatLaf.setGlobalExtraDefaults(Collections.singletonMap("@accentColor", toHexCode(color)));
-            FlatLaf.setup(lafClass.newInstance());
+            FlatLaf.setup(lafClass.getDeclaredConstructor().newInstance()); // ✅ Corrección aquí
             FlatLaf.updateUI();
-        } catch (InstantiationException | IllegalAccessException ex) {
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException ex) {
             LoggingFacade.INSTANCE.logSevere(null, ex);
         }
     }
@@ -120,9 +123,6 @@ public class ToolBarAccentColor extends JPanel {
     private String toHexCode(Color color) {
         return String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
     }
-
-    private JToolBar toolbar;
-    private JToggleButton selectedButton;
 
     private class AccentColorIcon extends FlatAbstractIcon {
 

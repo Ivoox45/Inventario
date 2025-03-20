@@ -27,8 +27,8 @@ public class LoginForm extends javax.swing.JPanel {
         cmdLogin.putClientProperty(FlatClientProperties.STYLE, ""
                 + "borderWidth:0;"
                 + "focusWidth:0");
-        txtUser.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "User Name");
-        txtPass.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Password");
+        txtUser.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Nombre de Usuario");
+        txtPass.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Contraseña");
     }
 
     @SuppressWarnings("unchecked")
@@ -44,18 +44,18 @@ public class LoginForm extends javax.swing.JPanel {
         cmdLogin = new javax.swing.JButton();
 
         lbTitle.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
-        lbTitle.setText("Login");
+        lbTitle.setText("Inicia sesión");
         panelLogin1.add(lbTitle);
 
-        lbUser.setText("User Name");
+        lbUser.setText("Nombre de Usuario");
         panelLogin1.add(lbUser);
         panelLogin1.add(txtUser);
 
-        lbPass.setText("Password");
+        lbPass.setText("Contraseña");
         panelLogin1.add(lbPass);
         panelLogin1.add(txtPass);
 
-        cmdLogin.setText("Login");
+        cmdLogin.setText("Ingresar");
         cmdLogin.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 cmdLoginActionPerformed(evt);

@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 public class Usuario implements Serializable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO) // Compatible con SQLite
     private Long id;
 
     @Column(name = "nombre_usuario", unique = true, nullable = false)
@@ -18,18 +18,18 @@ public class Usuario implements Serializable {
     @Column(name = "contrasena", nullable = false)
     private String contrasena;
 
-    @Column(name = "fecha_creacion", columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    @Column(name = "fecha_creacion", nullable = false)
     private LocalDateTime fechaCreacion;
 
     // Constructor vacío requerido por JPA
     public Usuario() {
+        this.fechaCreacion = LocalDateTime.now(); // Se asigna manualmente
     }
 
-    // Getters y Setters
-    public Usuario(String nombreUsuario, String contrasena, LocalDateTime fechaCreacion) {
+    public Usuario(String nombreUsuario, String contrasena) {
         this.nombreUsuario = nombreUsuario;
         this.contrasena = contrasena;
-        this.fechaCreacion = fechaCreacion;
+        this.fechaCreacion = LocalDateTime.now(); // Se asigna automáticamente
     }
 
     public Long getId() {
@@ -59,5 +59,4 @@ public class Usuario implements Serializable {
     public void setFechaCreacion(LocalDateTime fechaCreacion) {
         this.fechaCreacion = fechaCreacion;
     }
-
 }

@@ -3,12 +3,23 @@ package raven.application.form.other;
 import dialog.CreateProduct;
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
+import dialog.EditProduct;
+import dialog.Eliminar;
+import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import javax.swing.table.DefaultTableModel;
+import logica.Controladora;
+import logica.Producto;
 import raven.glasspanepopup.GlassPanePopup;
+import raven.toast.Notifications;
 import table.CheckBoxTableHeaderRenderer;
 import table.TableHeaderAlignment;
 
 public class FormInventario extends javax.swing.JPanel {
+
+    Controladora control = new Controladora();
 
     public FormInventario() {
         initComponents();
@@ -44,7 +55,7 @@ public class FormInventario extends javax.swing.JPanel {
         table.getColumnModel().getColumn(0).setHeaderRenderer(new CheckBoxTableHeaderRenderer(table, 0));
         table.getTableHeader().setDefaultRenderer(new TableHeaderAlignment(table));
 
-        txtSearch.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Search...");
+        txtSearch.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Buscar...");
         txtSearch.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, new FlatSVGIcon("icon/search.svg"));
         txtSearch.putClientProperty(FlatClientProperties.STYLE, ""
                 + "arc:15;"
@@ -54,22 +65,72 @@ public class FormInventario extends javax.swing.JPanel {
                 + "margin:5,20,5,20;"
                 + "background:$Panel.background");
 
-        cargarDatosPrueba();
+        cargarDatos();
+
     }
 
-    private void cargarDatosPrueba() {
-        DefaultTableModel model = (DefaultTableModel) table.getModel();
+    private final List<Producto> listaProductosTabla = new ArrayList<>();
 
-        model.addRow(new Object[]{false, 1, "Celular Samsung A14", 10, "$250"});
-        model.addRow(new Object[]{false, 2, "Audífonos Bluetooth", 15, "$50"});
-        model.addRow(new Object[]{false, 3, "Peluches Anime", 8, "$30"});
-        model.addRow(new Object[]{false, 4, "Carcasa iPhone 13", 20, "$15"});
-        model.addRow(new Object[]{false, 5, "Cargador Tipo C", 12, "$20"});
-        model.addRow(new Object[]{false, 6, "Laptop HP Pavilion", 5, "$800"});
-        model.addRow(new Object[]{false, 7, "Teclado Mecánico RGB", 7, "$60"});
-        model.addRow(new Object[]{false, 8, "Mouse Gamer Logitech", 10, "$40"});
-        model.addRow(new Object[]{false, 9, "Funkos de Naruto", 6, "$35"});
-        model.addRow(new Object[]{false, 10, "Tablet Lenovo M10", 4, "$200"});
+    public void cargarDatos() {
+        if (table.isEditing()) {
+            table.getCellEditor().stopCellEditing();
+        }
+
+        DefaultTableModel model = (DefaultTableModel) table.getModel();
+        model.setRowCount(0);
+        listaProductosTabla.clear();
+
+        try {
+            List<Producto> productos = control.obtenerProductos();
+            NumberFormat formato = NumberFormat.getNumberInstance(Locale.US);
+            int index = 1;
+
+            for (Producto p : productos) {
+                double precio = p.getPrecio();
+                String precioFormateado = "S/" + formato.format((Math.floor(precio) == precio ? (long) precio : precio));
+
+                model.addRow(new Object[]{false, index++, p.getNombre(), p.getStock(), precioFormateado});
+                listaProductosTabla.add(p);
+            }
+        } catch (Exception e) {
+            System.err.println("Error al cargar productos: " + e.getMessage());
+        }
+    }
+
+    private void buscarDatos(String search) {
+        if (table.isEditing()) {
+            table.getCellEditor().stopCellEditing();
+        }
+
+        DefaultTableModel model = (DefaultTableModel) table.getModel();
+        model.setRowCount(0); 
+
+        try {
+            List<Producto> listaProductos = control.search(search);
+            int index = 1;
+
+            for (Producto p : listaProductos) {
+                model.addRow(new Object[]{false, index++, p.getNombre(), p.getStock(), p.getPrecio()});
+            }
+        } catch (Exception e) {
+            System.err.println("Error al buscar productos: " + e.getMessage());
+        }
+    }
+
+    private List<Producto> getSelectedData() {
+        List<Producto> seleccionados = new ArrayList<>();
+
+        try {
+            for (int i = 0; i < table.getRowCount(); i++) {
+                if (Boolean.TRUE.equals(table.getValueAt(i, 0))) {
+                    seleccionados.add(listaProductosTabla.get(i));
+                }
+            }
+        } catch (IndexOutOfBoundsException e) {
+            System.err.println("Error: Índice fuera de rango en getSelectedData()");
+        }
+
+        return seleccionados;
     }
 
     @SuppressWarnings("unchecked")
@@ -82,9 +143,9 @@ public class FormInventario extends javax.swing.JPanel {
         table = new javax.swing.JTable();
         jSeparator1 = new javax.swing.JSeparator();
         txtSearch = new javax.swing.JTextField();
-        buttonAction1 = new swing.ButtonAction();
-        buttonAction2 = new swing.ButtonAction();
-        buttonAction3 = new swing.ButtonAction();
+        btnCrear = new swing.ButtonAction();
+        btnEliminar = new swing.ButtonAction();
+        btnEdit = new swing.ButtonAction();
         lb = new javax.swing.JLabel();
 
         scroll.setBorder(javax.swing.BorderFactory.createEmptyBorder(0, 0, 0, 0));
@@ -126,17 +187,32 @@ public class FormInventario extends javax.swing.JPanel {
                 txtSearchActionPerformed(evt);
             }
         });
-
-        buttonAction1.setText("Agregar");
-        buttonAction1.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                buttonAction1ActionPerformed(evt);
+        txtSearch.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyReleased(java.awt.event.KeyEvent evt) {
+                txtSearchKeyReleased(evt);
             }
         });
 
-        buttonAction2.setText("Eliminar");
+        btnCrear.setText("Agregar");
+        btnCrear.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnCrearActionPerformed(evt);
+            }
+        });
 
-        buttonAction3.setText("Editar");
+        btnEliminar.setText("Eliminar");
+        btnEliminar.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnEliminarActionPerformed(evt);
+            }
+        });
+
+        btnEdit.setText("Editar");
+        btnEdit.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnEditActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout panelLayout = new javax.swing.GroupLayout(panel);
         panel.setLayout(panelLayout);
@@ -150,11 +226,11 @@ public class FormInventario extends javax.swing.JPanel {
                 .addGap(20, 20, 20)
                 .addComponent(txtSearch, javax.swing.GroupLayout.PREFERRED_SIZE, 230, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 576, Short.MAX_VALUE)
-                .addComponent(buttonAction1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(btnCrear, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(buttonAction3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(btnEdit, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(buttonAction2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(btnEliminar, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(20, 20, 20))
         );
         panelLayout.setVerticalGroup(
@@ -163,14 +239,14 @@ public class FormInventario extends javax.swing.JPanel {
                 .addGap(17, 17, 17)
                 .addGroup(panelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(txtSearch, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(buttonAction2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(buttonAction3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(buttonAction1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(btnEliminar, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnEdit, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnCrear, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(7, 7, 7)
                 .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, 4, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(0, 0, 0)
-                .addComponent(scroll, javax.swing.GroupLayout.PREFERRED_SIZE, 406, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addComponent(scroll, javax.swing.GroupLayout.DEFAULT_SIZE, 406, Short.MAX_VALUE)
+                .addContainerGap())
         );
 
         lb.setText("Inventario");
@@ -200,18 +276,44 @@ public class FormInventario extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void txtSearchActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtSearchActionPerformed
-        
+
     }//GEN-LAST:event_txtSearchActionPerformed
 
-    private void buttonAction1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonAction1ActionPerformed
-        GlassPanePopup.showPopup(new CreateProduct());
-    }//GEN-LAST:event_buttonAction1ActionPerformed
+    private void btnCrearActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCrearActionPerformed
+        GlassPanePopup.showPopup(new CreateProduct(this));
+    }//GEN-LAST:event_btnCrearActionPerformed
+
+    private void txtSearchKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_txtSearchKeyReleased
+        buscarDatos(txtSearch.getText().trim());
+    }//GEN-LAST:event_txtSearchKeyReleased
+
+    private void btnEditActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEditActionPerformed
+        List<Producto> list = getSelectedData();
+        if (!list.isEmpty()) {
+            if (list.size() == 1) {
+                GlassPanePopup.showPopup(new EditProduct(list, this));
+            } else {
+                Notifications.getInstance().show(Notifications.Type.WARNING, "Porfavor seleccione solo un producto");
+            }
+        } else {
+            Notifications.getInstance().show(Notifications.Type.WARNING, "Porfavor seleccione un producto para editar");
+        }
+    }//GEN-LAST:event_btnEditActionPerformed
+
+    private void btnEliminarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEliminarActionPerformed
+        List<Producto> list = getSelectedData();
+        if (!list.isEmpty()) {
+            GlassPanePopup.showPopup(new Eliminar(list, this));
+        } else {
+            Notifications.getInstance().show(Notifications.Type.WARNING, "Porfavor seleccione un producto para Eliminar");
+        }
+    }//GEN-LAST:event_btnEliminarActionPerformed
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private swing.ButtonAction buttonAction1;
-    private swing.ButtonAction buttonAction2;
-    private swing.ButtonAction buttonAction3;
+    private swing.ButtonAction btnCrear;
+    private swing.ButtonAction btnEdit;
+    private swing.ButtonAction btnEliminar;
     private javax.swing.JSeparator jSeparator1;
     private javax.swing.JLabel lb;
     private javax.swing.JPanel panel;

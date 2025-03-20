@@ -2,14 +2,13 @@ package logica;
 
 import jakarta.persistence.*;
 import java.io.Serializable;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "productos")
 public class Producto implements Serializable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO) // Compatible con SQLite
     private Long id;
 
     @Column(name = "nombre", nullable = false)
@@ -21,19 +20,15 @@ public class Producto implements Serializable {
     @Column(name = "stock", nullable = false)
     private Integer stock;
 
-    @Column(name = "fecha_creacion", columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-    private LocalDateTime fechaCreacion;
-
     // Constructor vacío requerido por JPA
     public Producto() {
     }
 
-    // Getters y Setters
-    public Producto(String nombre, Double precio, Integer stock, LocalDateTime fechaCreacion) {
+    // Constructor con parámetros
+    public Producto(String nombre, Double precio, Integer stock) {
         this.nombre = nombre;
         this.precio = precio;
         this.stock = stock;
-        this.fechaCreacion = fechaCreacion;
     }
 
     public Long getId() {
@@ -64,12 +59,8 @@ public class Producto implements Serializable {
         this.stock = stock;
     }
 
-    public LocalDateTime getFechaCreacion() {
-        return fechaCreacion;
-    }
-
-    public void setFechaCreacion(LocalDateTime fechaCreacion) {
-        this.fechaCreacion = fechaCreacion;
+    public Object[] toTableRow(int i) {
+        return new Object[]{false, i, this.nombre, this.stock, this.precio, this}; 
     }
 
 }

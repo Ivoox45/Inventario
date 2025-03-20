@@ -3,32 +3,31 @@ package logica;
 import jakarta.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.util.List;
+import java.time.format.DateTimeFormatter;
 
 @Entity
 @Table(name = "ventas")
 public class Venta implements Serializable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
     @Column(name = "monto_total", nullable = false)
     private Double montoTotal;
 
-    @Column(name = "fecha_creacion", columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-    private LocalDateTime fechaCreacion;
+    @Column(name = "fecha", nullable = false)
+    private String fecha;  // 🔹 Guardamos la fecha como String en formato "YYYY-MM-DD HH:MM:SS"
 
-    @OneToMany(mappedBy = "venta", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<DetalleVenta> detalles;
+    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     public Venta() {
+        this.fecha = LocalDateTime.now().format(formatter);  // 🔹 Guardamos la fecha formateada
     }
 
-    public Venta(Double montoTotal, LocalDateTime fechaCreacion, List<DetalleVenta> detalles) {
+    public Venta(Double montoTotal) {
         this.montoTotal = montoTotal;
-        this.fechaCreacion = fechaCreacion;
-        this.detalles = detalles;
+        this.fecha = LocalDateTime.now().format(formatter);
     }
 
     public Long getId() {
@@ -43,20 +42,15 @@ public class Venta implements Serializable {
         this.montoTotal = montoTotal;
     }
 
-    public LocalDateTime getFechaCreacion() {
-        return fechaCreacion;
+    public String getFecha() {
+        return fecha;
     }
 
-    public void setFechaCreacion(LocalDateTime fechaCreacion) {
-        this.fechaCreacion = fechaCreacion;
+    public void setFecha(LocalDateTime fecha) {
+        this.fecha = fecha.format(formatter);
     }
 
-    public List<DetalleVenta> getDetalles() {
-        return detalles;
+    public LocalDateTime getFechaAsLocalDateTime() {
+        return LocalDateTime.parse(this.fecha, formatter);  // 🔹 Convertimos el String a LocalDateTime si es necesario
     }
-
-    public void setDetalles(List<DetalleVenta> detalles) {
-        this.detalles = detalles;
-    }
-
 }

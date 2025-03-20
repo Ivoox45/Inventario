@@ -28,7 +28,7 @@ public class ProductoJpaController implements Serializable {
     private EntityManagerFactory emf = null;
 
     public ProductoJpaController() {
-        emf = Persistence.createEntityManagerFactory("InventarioPU");
+        emf = Persistence.createEntityManagerFactory("Inventario");
     }
 
     public EntityManager getEntityManager() {
@@ -126,6 +126,17 @@ public class ProductoJpaController implements Serializable {
         }
     }
 
+    public List<Producto> buscarPorNombre(String nombre) {
+        EntityManager em = getEntityManager();
+        try {
+            Query query = em.createQuery("SELECT p FROM Producto p WHERE LOWER(p.nombre) LIKE LOWER(:nombre)");
+            query.setParameter("nombre", "%" + nombre + "%");
+            return query.getResultList();
+        } finally {
+            em.close();
+        }
+    }
+
     public int getProductoCount() {
         EntityManager em = getEntityManager();
         try {
@@ -134,6 +145,19 @@ public class ProductoJpaController implements Serializable {
             cq.select(em.getCriteriaBuilder().count(rt));
             Query q = em.createQuery(cq);
             return ((Long) q.getSingleResult()).intValue();
+        } finally {
+            em.close();
+        }
+    }
+
+    public Producto buscarPorNombreExacto(String nombre) {
+        EntityManager em = getEntityManager();
+        try {
+            Query query = em.createQuery("SELECT p FROM Producto p WHERE p.nombre = :nombre");
+            query.setParameter("nombre", nombre);
+            return (Producto) query.getSingleResult();
+        } catch (Exception e) {
+            return null;  // Si no encuentra el producto, devuelve null
         } finally {
             em.close();
         }

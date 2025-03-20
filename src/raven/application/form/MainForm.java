@@ -33,6 +33,8 @@ import raven.menu.MenuAction;
  */
 public class MainForm extends JLayeredPane {
 
+    
+    
     public MainForm() {
         init();
 
@@ -114,6 +116,10 @@ public class MainForm extends JLayeredPane {
 
     public static void closeGlass() {
         GlassPanePopup.closePopupLast();
+    }
+
+    public static void recargarTabla() {
+
     }
 
     public void showForm(Component component) {

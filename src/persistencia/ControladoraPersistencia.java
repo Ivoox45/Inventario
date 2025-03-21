@@ -1,6 +1,8 @@
 package persistencia;
 
+import java.time.LocalDate;
 import java.util.List;
+import logica.DetalleVenta;
 
 import logica.Producto;
 import logica.Venta;
@@ -11,9 +13,14 @@ public class ControladoraPersistencia {
     ProductoJpaController ProductoJpa = new ProductoJpaController();
     UsuarioJpaController UsuarioJpa = new UsuarioJpaController();
     VentaJpaController VentaJpa = new VentaJpaController();
+    DetalleVentaJpaController DetalleJpa = new DetalleVentaJpaController();
 
     public void AgregarVenta(Venta venta) {
         VentaJpa.create(venta); // Guardar la venta en la base de datos
+    }
+
+    public void ActualizarVenta(Venta venta) {
+        VentaJpa.ActualizarVenta(venta); // Llama a la persistencia
     }
 
     public void AgregarProducto(Producto pro) {
@@ -51,8 +58,24 @@ public class ControladoraPersistencia {
     }
 
     public List<Venta> obtenerTodasLasVentas() {
-        return VentaJpa.obtenerTodasLasVentas();
-        
+        return VentaJpa.findVentaEntities();
+
+    }
+
+    public void AgregarDetalleVenta(DetalleVenta detalle) {
+        DetalleJpa.create(detalle); // Llama al JPA Controller para guardar
+    }
+
+    public List<DetalleVenta> ObtenerDetallesPorVenta(Long idVenta) {
+        return DetalleJpa.obtenerDetallesPorVenta(idVenta); // Llama al método en JPA
+    }
+
+    public List<Venta> obtenerVentasPorRangoDeFechas(LocalDate fechaInicio, LocalDate fechaFin) {
+        return VentaJpa.obtenerVentasPorRangoDeFechas(fechaInicio, fechaFin);
+    }
+
+    public List<DetalleVenta> ObtenerDetallesPorVentaFull() {
+        return DetalleJpa.findDetalleVentaEntities();
     }
 
 }

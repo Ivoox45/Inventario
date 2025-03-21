@@ -82,12 +82,12 @@ public class FormInventario extends javax.swing.JPanel {
 
         try {
             List<Producto> productos = control.obtenerProductos();
-            NumberFormat formato = NumberFormat.getNumberInstance(Locale.US);
-            int index = 1;
+            NumberFormat formatoSoles = NumberFormat.getCurrencyInstance(new Locale("es", "PE"));
 
+            int index = 1;
             for (Producto p : productos) {
                 double precio = p.getPrecio();
-                String precioFormateado = "S/" + formato.format((Math.floor(precio) == precio ? (long) precio : precio));
+                String precioFormateado = formatoSoles.format(precio).replace("PEN", "S/").trim();
 
                 model.addRow(new Object[]{false, index++, p.getNombre(), p.getStock(), precioFormateado});
                 listaProductosTabla.add(p);
@@ -103,7 +103,7 @@ public class FormInventario extends javax.swing.JPanel {
         }
 
         DefaultTableModel model = (DefaultTableModel) table.getModel();
-        model.setRowCount(0); 
+        model.setRowCount(0);
 
         try {
             List<Producto> listaProductos = control.search(search);

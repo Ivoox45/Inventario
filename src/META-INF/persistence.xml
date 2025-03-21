@@ -6,6 +6,7 @@
     <class>logica.Producto</class>
     <class>logica.Usuario</class>
     <class>logica.Venta</class>
+    <class>logica.DetalleVenta</class>
     <properties>
       <!-- Configuración de SQLite -->
       <!-- Configuración de Hibernate -->

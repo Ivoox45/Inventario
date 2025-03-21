@@ -7,14 +7,15 @@ import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import logica.Controladora;
 import logica.Producto;
+import logica.Venta;
 import net.miginfocom.swing.MigLayout;
 import raven.toast.Notifications;
 import table.TableActionCellRender;
 import table.TableActionCellEditor;
+import table.TableHeaderAlignment;
 
 public final class FormVentas extends javax.swing.JPanel {
 
@@ -32,7 +33,7 @@ public final class FormVentas extends javax.swing.JPanel {
                 + "trackInsets:3,3,3,3;"
                 + "thumbInsets:3,3,3,3;"
                 + "background:$Table.background;");
-
+        scroll.getVerticalScrollBar().setUnitIncrement(20);
         panel3.setLayout(new MigLayout("inset 0, fillx, wrap", "[fill]"));
         lb.putClientProperty(FlatClientProperties.STYLE, ""
                 + "font:$h1.font");
@@ -57,6 +58,7 @@ public final class FormVentas extends javax.swing.JPanel {
                 + "cellFocusColor:$TableHeader.hoverBackground;"
                 + "selectionBackground:$TableHeader.hoverBackground;"
                 + "selectionForeground:$Table.foreground;");
+        Table.getTableHeader().setDefaultRenderer(new TableHeaderAlignment(Table));
         scroll1.getVerticalScrollBar().putClientProperty(FlatClientProperties.STYLE, ""
                 + "trackArc:999;"
                 + "trackInsets:3,3,3,3;"
@@ -117,6 +119,8 @@ public final class FormVentas extends javax.swing.JPanel {
         Table.getTableHeader().setReorderingAllowed(false);
         scroll1.setViewportView(Table);
         if (Table.getColumnModel().getColumnCount() > 0) {
+            Table.getColumnModel().getColumn(0).setMinWidth(50);
+            Table.getColumnModel().getColumn(0).setPreferredWidth(50);
             Table.getColumnModel().getColumn(0).setMaxWidth(50);
             Table.getColumnModel().getColumn(4).setMaxWidth(80);
         }
@@ -164,7 +168,7 @@ public final class FormVentas extends javax.swing.JPanel {
             }
         });
 
-        scroll.setBorder(null);
+        scroll.setBorder(javax.swing.BorderFactory.createEmptyBorder(0, 0, 0, 0));
         scroll.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
         panel3.setOpaque(false);
@@ -267,15 +271,6 @@ public final class FormVentas extends javax.swing.JPanel {
 
     private final List<Producto> listaProductosTabla = new ArrayList<>();
 
-    private void alinearColumnas() {
-        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
-        centerRenderer.setHorizontalAlignment(javax.swing.JLabel.CENTER);
-        Table.getColumnModel().getColumn(0).setCellRenderer(centerRenderer);
-        Table.getColumnModel().getColumn(1).setCellRenderer(centerRenderer);
-        Table.getColumnModel().getColumn(2).setCellRenderer(centerRenderer);
-        Table.getColumnModel().getColumn(3).setCellRenderer(centerRenderer);
-    }
-
     public final void cargarDatos() {
         if (Table.isEditing()) {
             Table.getCellEditor().stopCellEditing();
@@ -296,14 +291,12 @@ public final class FormVentas extends javax.swing.JPanel {
 
                 model.addRow(new Object[]{index++, p.getNombre(), p.getStock(), precioFormateado, null});
                 listaProductosTabla.add(p);
-            }
 
+            }
+//            alinearColumnas();
             // Aplicar renderizador y editor de celdas a la columna "AGREGAR"
             Table.getColumnModel().getColumn(4).setCellRenderer(new TableActionCellRender());
             Table.getColumnModel().getColumn(4).setCellEditor(new TableActionCellEditor(this));
-
-            // **Aplicar alineación**
-            alinearColumnas();
 
         } catch (Exception e) {
             System.err.println("Error al cargar productos: " + e.getMessage());
@@ -356,48 +349,55 @@ public final class FormVentas extends javax.swing.JPanel {
 
     private void btnConfirmarCompraActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnConfirmarCompraActionPerformed
         try {
-            // Verificar si el carrito (panel3) está vacío
+            // Verificar si el carrito está vacío
             if (panel3.getComponentCount() == 0) {
                 Notifications.getInstance().show(Notifications.Type.WARNING,
                         "Debe agregar productos al carrito antes de confirmar la compra.");
-                return; // Detener la ejecución
+                return;
             }
 
-            double montoTotal = 0;  // Variable para calcular el total de la compra
+            // Crear la venta (sin detalles aún)
+            Venta nuevaVenta = new Venta();
+            control.AgregarVenta(nuevaVenta); // ✅ Ahora tiene un ID en la BD
 
+            double montoTotal = 0;
+            int cantidadTotalProductos = 0;
+
+            // Ahora procesamos los productos del carrito
             for (java.awt.Component comp : panel3.getComponents()) {
                 if (comp instanceof ItemVenta) {
                     ItemVenta item = (ItemVenta) comp;
 
-                    String nombre = item.getNombre();
-                    int cantidadComprada = item.getCantidad();
-                    double precioUnitario = item.getPrecio(); // Método para obtener precio del producto
+                    Producto producto = control.obtenerProductoPorNombre(item.getNombre());
+                    int cantidad = item.getCantidad();
+                    double precioUnitario = item.getPrecio();
 
-                    // Calcular el monto total
-                    montoTotal += cantidadComprada * precioUnitario;
+                    // Crear y guardar el detalle de venta asociado a la venta
+                    control.AgregarDetalleVenta(nuevaVenta, producto, cantidad, precioUnitario);
 
-                    // Buscar el producto en la base de datos
-                    Producto producto = control.obtenerProductoPorNombre(nombre);
-
-                    if (producto != null) {
-                        int nuevoStock = producto.getStock() - cantidadComprada;
-
-                        if (nuevoStock >= 0) {
-                            producto.setStock(nuevoStock);
-                            control.ActualizarProducto(producto);
-                        } else {
-                            Notifications.getInstance().show(Notifications.Type.WARNING,
-                                    "Stock insuficiente para " + nombre);
-                            return; // Detener la ejecución si un producto no tiene stock suficiente
-                        }
+                    // Actualizar el stock del producto
+                    int nuevoStock = producto.getStock() - cantidad;
+                    if (nuevoStock >= 0) {
+                        producto.setStock(nuevoStock);
+                        control.ActualizarProducto(producto);
+                    } else {
+                        Notifications.getInstance().show(Notifications.Type.WARNING,
+                                "Stock insuficiente para " + producto.getNombre());
+                        return;
                     }
+
+                    // Acumular valores para el total de la venta
+                    montoTotal += cantidad * precioUnitario;
+                    cantidadTotalProductos += cantidad;
                 }
             }
 
-            // Registrar la venta en la base de datos sin usuario
-            control.AgregarVenta(montoTotal);
+            // Ahora que todos los detalles están agregados, actualizamos la venta con el monto total
+            nuevaVenta.setMontoTotal(montoTotal);
+            nuevaVenta.setCantidadTotalProductos(cantidadTotalProductos);
+            control.ActualizarVenta(nuevaVenta); // ✅ Guardar cambios en la BD
 
-            // Actualizar la interfaz
+            // Limpiar la interfaz
             cargarDatos();
             panel3.removeAll();
             reiniciarCarrito();

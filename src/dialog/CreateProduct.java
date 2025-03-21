@@ -1,6 +1,11 @@
 package dialog;
 
 import java.awt.Graphics;
+import java.text.NumberFormat;
+import java.text.ParseException;
+import java.util.Locale;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import logica.Controladora;
 import raven.application.form.MainForm;
 import raven.application.form.other.FormInventario;
@@ -142,26 +147,34 @@ public class CreateProduct extends javax.swing.JPanel {
     private void btnAgregarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAgregarActionPerformed
         try {
             String nombre = txtName.getText();
-            String precioText = txtPrecio.getText().trim().replace(",", ""); // Eliminar comas y espacios
+            String precioText = txtPrecio.getText().trim();
             String stockText = txtStock.getText().trim();
 
-            // Verificar que los campos no estén vacíos antes de convertirlos
+            // Verificar que los campos no estén vacíos
             if (precioText.isEmpty() || stockText.isEmpty()) {
-                throw new NumberFormatException(); // Lanza error si hay campos vacíos
+                throw new NumberFormatException("Los campos de precio o stock están vacíos.");
             }
 
-            Double precio = Double.valueOf(precioText);
-            Integer stock = Integer.valueOf(stockText);
+            // Formateador para reconocer el formato de moneda en Perú
+            NumberFormat formatoSoles = NumberFormat.getNumberInstance(new Locale("es", "PE"));
 
+            // Eliminar "S/" si el usuario lo escribió y convertir a número
+            precioText = precioText.replace("S/", "").trim();
+            Number precioNumero = formatoSoles.parse(precioText); // Convierte "1,500.50" a 1500.50
+            double precio = precioNumero.doubleValue();
+
+            // Convertir stock a número entero
+            int stock = Integer.parseInt(stockText);
+
+            // Guardar el producto con los valores correctos
             control.AgregarProducto(nombre, precio, stock);
             MainForm.closeGlass();
             inven.cargarDatos();
             Notifications.getInstance().show(Notifications.Type.SUCCESS, "El Producto ha sido creado");
-        } catch (NumberFormatException e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, "Error en los datos ingresados. Verifica que los valores sean correctos.");
-            System.out.println("Error de formato numérico: " + e.getMessage()); // Imprimir error en consola para depuración
+        } catch (NumberFormatException | ParseException e) {
+            Notifications.getInstance().show(Notifications.Type.ERROR, "Error en los datos ingresados. Verifica el formato.");
+            System.out.println("Error en el formato del número: " + e.getMessage());
         }
-
     }//GEN-LAST:event_btnAgregarActionPerformed
 
     private void button2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_button2ActionPerformed

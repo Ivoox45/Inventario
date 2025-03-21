@@ -19,7 +19,6 @@ import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 import raven.application.Application;
 import raven.application.form.other.FormDashboard;
-import raven.application.form.other.FormReportes;
 import raven.application.form.other.FormVentas;
 import dialog.Message;
 import raven.application.form.other.FormInventario;
@@ -82,8 +81,7 @@ public class MainForm extends JLayeredPane {
         menuActions.put(0, () -> Application.showForm(new FormDashboard()));
         menuActions.put(1, () -> Application.showForm(new FormInventario()));
         menuActions.put(2, () -> Application.showForm(new FormVentas()));
-        menuActions.put(3, () -> Application.showForm(new FormReportes()));
-        menuActions.put(4, () -> {
+        menuActions.put(3, () -> {
             GlassPanePopup.showPopup(new Message());
         });
 

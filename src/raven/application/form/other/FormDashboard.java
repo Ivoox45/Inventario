@@ -3,12 +3,14 @@ package raven.application.form.other;
 import com.formdev.flatlaf.FlatClientProperties;
 import dialog.CardTable;
 import java.awt.BorderLayout;
-import java.awt.Color;
+import java.awt.event.ActionEvent;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -22,49 +24,106 @@ import logica.DetalleVenta;
 import logica.Producto;
 import logica.Venta;
 import net.miginfocom.swing.MigLayout;
+import raven.datetime.component.date.DateEvent;
+import raven.datetime.component.date.DatePicker;
+import raven.datetime.component.date.DateSelectionAble;
+import raven.datetime.component.date.DateSelectionListener;
 import raven.menu.GraficoVenta;
 import raven.menu.GraficoVentasDetallado;
 import table.TableHeaderAlignment;
 
-/**
- *
- * @author Raven
- */
 public class FormDashboard extends javax.swing.JPanel {
 
     Controladora control = new Controladora();
+    private GraficoVenta graficoVenta;  // 🔹 Lo declaramos aquí para que toda la clase lo use
+    DatePicker datePiker = new DatePicker();
 
     public FormDashboard() {
         initComponents();
+
+        // Configuración inicial
         cbxFiltro.setSelectedItem("Hoy");
+
+        // Agregar gráficos
         agregarGraficoVentasDiarias();
-        agregarGraficoProductosMasVendidos();
+
+        // Actualizar valores iniciales
         lblStock.setText(String.valueOf(tableStockBajo.getRowCount()));
 
-// Configuración de fuentes
-        lb.putClientProperty(FlatClientProperties.STYLE, "font:$h1.font");
-        label7.putClientProperty(FlatClientProperties.STYLE, "font:$h2.font");
-        lblVentasTotales.putClientProperty(FlatClientProperties.STYLE, "font:$h3.font");
-        lblVentasHoy.putClientProperty(FlatClientProperties.STYLE, "font:$h3.font");
-        lblStockBajo.putClientProperty(FlatClientProperties.STYLE, "font:$h3.font");
+        // Configuración de fuentes
+        configurarEstilosFuentes();
+
+        // Configuración de paneles con estilo
+        configurarEstilosPaneles();
+
+        // Configuración de tablas
+        configurarEstilosTablas();
+
+        // Configuración de barras de desplazamiento
+        configurarEstilosScrollBars();
+
+        // Cargar datos en las tablas
+        actualizarDatosTablas();
+
+        // Configuración de diseño de historial
+        PanelHistorialContainerTable.setLayout(new MigLayout("inset 0, fillx, wrap", "[fill]"));
+        scrollHistorial.getVerticalScrollBar().setUnitIncrement(20);
+        scrollMasVendidos.getVerticalScrollBar().setUnitIncrement(20);
+
+        datePiker.setEditor(txtFechaFiltrado);
+        datePiker.setDateSelectionMode(DatePicker.DateSelectionMode.BETWEEN_DATE_SELECTED);
+        datePiker.setSeparator(" hasta ");
+        datePiker.setUsePanelOption(true);
+        datePiker.setDateSelectionAble((LocalDate ld) -> !ld.isAfter(LocalDate.now()));
+        datePiker.addDateSelectionListener(new DateSelectionListener() {
+            @Override
+            public void dateSelected(DateEvent dateEvent) {
+                LocalDate[] dates = datePiker.getSelectedDateRange();
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+
+                if (dates != null && dates.length == 2) {
+                    String startDate = formatter.format(dates[0]);
+                    String endDate = formatter.format(dates[1]);
+                    System.out.println(startDate + " - " + endDate);
+                } else {
+                    System.out.println("Rango de fechas incompleto o no seleccionado.");
+                }
+            }
+        });
+
+    }
+
+    //Metodos para los Estilos de Paneles, Tablas, Scrolls y Colocacion de Graficos.
+    private void configurarEstilosFuentes() {
         lblPrecioTotal.putClientProperty(FlatClientProperties.STYLE, "font:$h1.font");
         lblPrecioHoy.putClientProperty(FlatClientProperties.STYLE, "font:$h1.font");
         lblStock.putClientProperty(FlatClientProperties.STYLE, "font:$h1.font");
-        lblFecha.putClientProperty(FlatClientProperties.STYLE, "font:$h4.font");
-        lblHoyvsAyer.putClientProperty(FlatClientProperties.STYLE, "font:$h4.font");
-        lblAtencion.putClientProperty(FlatClientProperties.STYLE, "font:$h4.font");
+        lbDashboard.putClientProperty(FlatClientProperties.STYLE, "font:$h1.font");
+
         lblDetallePro.putClientProperty(FlatClientProperties.STYLE, "font:$h2.font");
         lblStockBajoTable.putClientProperty(FlatClientProperties.STYLE, "font:$h2.font");
         lblTituloHistorial.putClientProperty(FlatClientProperties.STYLE, "font:$h2.font");
-// Configuración de paneles con estilo
+        lblDetalleVenta.putClientProperty(FlatClientProperties.STYLE, "font:$h2.font");
+
+        lblVentasTotales.putClientProperty(FlatClientProperties.STYLE, "font:$h3.font");
+        lblVentasHoy.putClientProperty(FlatClientProperties.STYLE, "font:$h3.font");
+        lblStockBajo.putClientProperty(FlatClientProperties.STYLE, "font:$h3.font");
+
+        lblFecha.putClientProperty(FlatClientProperties.STYLE, "font:$h4.font");
+        lblHoyvsAyer.putClientProperty(FlatClientProperties.STYLE, "font:$h4.font");
+        lblAtencion.putClientProperty(FlatClientProperties.STYLE, "font:$h4.font");
+    }
+
+    private void configurarEstilosPaneles() {
         JPanel[] paneles = {PanelStockBajoTable, PanelStockBajo, PanelVentaHoy, PanelVentasTotales,
             PanelTablaVentas, PanelProductoDetalles, PanelHistorial};
         for (JPanel panel : paneles) {
             panel.putClientProperty(FlatClientProperties.STYLE, "arc:25;background:$Table.background");
         }
         PanelHistorialContainerTable.putClientProperty(FlatClientProperties.STYLE, "background:$Table.background");
+    }
 
-// Configuración de tablas
+    private void configurarEstilosTablas() {
         JTable[] tablas = {TablaVentas, TableDetalleProducto, tableStockBajo};
         for (JTable tabla : tablas) {
             tabla.putClientProperty(FlatClientProperties.STYLE, "rowHeight:30;showHorizontalLines:true;"
@@ -74,15 +133,17 @@ public class FormDashboard extends javax.swing.JPanel {
                     + "pressedBackground:null;separatorColor:$TableHeader.background;font:bold;");
             tabla.getTableHeader().setDefaultRenderer(new TableHeaderAlignment(TablaVentas));
         }
+    }
 
-// Configuración de barras de desplazamiento
+    private void configurarEstilosScrollBars() {
         JScrollPane[] scrolls = {scroll, scrollDetalle, scrollMasVendidos};
         for (JScrollPane scr : scrolls) {
             scr.getVerticalScrollBar().putClientProperty(FlatClientProperties.STYLE, "trackArc:999;trackInsets:3,3,3,3;"
                     + "thumbInsets:3,3,3,3;background:$Table.background;");
         }
+    }
 
-// Actualizar tabla de productos
+    private void actualizarDatosTablas() {
         tableStockBajo.getTableHeader().setDefaultRenderer(new TableHeaderAlignment(TablaVentas));
         actualizarTablaProductos(control.ObtenerDetallesPorVentaFull());
         CargarTablaStockBajo(control.obtenerProductos());
@@ -91,32 +152,40 @@ public class FormDashboard extends javax.swing.JPanel {
         obtenerTotalVentasHoy(control.ObtenerVentas());
         obtenerTotalVentasAyer(control.ObtenerVentas());
         actualizarVentasHoy(control.ObtenerVentas());
-        PanelHistorialContainerTable.setLayout(new MigLayout("inset 0, fillx, wrap", "[fill]"));
-        scrollHistorial.getVerticalScrollBar().setUnitIncrement(20);
-        scrollMasVendidos.getVerticalScrollBar().setUnitIncrement(20);
     }
 
     private void agregarGraficoVentasDiarias() {
-        GraficoVentasDetallado grafico = new GraficoVentasDetallado(); // ✅ Crear instancia del gráfico
-        PanelVentasDiariasGrafico.setLayout(new BorderLayout()); // ✅ Asegurar buen diseño
-        PanelVentasDiariasGrafico.add(grafico, BorderLayout.CENTER); // ✅ Agregar el gráfico al panel
-        PanelVentasDiariasGrafico.revalidate(); // ✅ Refrescar el panel
+        GraficoVentasDetallado grafico = new GraficoVentasDetallado();
+        PanelVentasDiariasGrafico.setLayout(new BorderLayout());
+        PanelVentasDiariasGrafico.add(grafico, BorderLayout.CENTER);
+        PanelVentasDiariasGrafico.revalidate();
         PanelVentasDiariasGrafico.repaint();
     }
 
-    private void agregarGraficoProductosMasVendidos() {
-        GraficoVenta grafico = new GraficoVenta();
-        PanelGraficoBarras.setLayout(new BorderLayout());
-        PanelGraficoBarras.add(grafico, BorderLayout.CENTER); // ✅ Agregar el gráfico al panel
-        PanelGraficoBarras.revalidate(); // ✅ Refrescar el panel
+    private void agregarGraficoProductosMasVendidos(List<Object[]> resumenProductos) {
+        if (graficoVenta == null) {
+            graficoVenta = new GraficoVenta();
+            PanelGraficoBarras.setLayout(new BorderLayout());
+        }
+
+        // 🔹 Limpia el panel antes de agregar el gráfico
+        PanelGraficoBarras.removeAll();
+        PanelGraficoBarras.add(graficoVenta, BorderLayout.CENTER);
+
+        graficoVenta.refrescarGrafico(resumenProductos); // 🔹 Verifica que este método se ejecuta
+
+        // 🔹 Asegura que el gráfico es visible
+        graficoVenta.setVisible(true);
+        PanelGraficoBarras.revalidate();
         PanelGraficoBarras.repaint();
+        PanelGraficoBarras.updateUI(); // 🔹 Refuerzo extra si no se dibuja
     }
 
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        lb = new javax.swing.JLabel();
+        lbDashboard = new javax.swing.JLabel();
         PanelVentasTotales = new javax.swing.JPanel();
         lblVentasTotales = new javax.swing.JLabel();
         lblPrecioTotal = new javax.swing.JLabel();
@@ -137,9 +206,8 @@ public class FormDashboard extends javax.swing.JPanel {
         PanelTablaVentas = new javax.swing.JPanel();
         scroll = new javax.swing.JScrollPane();
         TablaVentas = new javax.swing.JTable();
-        label7 = new javax.swing.JLabel();
+        lblDetalleVenta = new javax.swing.JLabel();
         PanelVentasDiariasGrafico = new javax.swing.JPanel();
-        cbxFiltro = new javax.swing.JComboBox<>();
         PanelProductoMasVendido = new javax.swing.JPanel();
         PanelProductoDetalles = new javax.swing.JPanel();
         scrollDetalle = new javax.swing.JScrollPane();
@@ -152,14 +220,16 @@ public class FormDashboard extends javax.swing.JPanel {
         scrollHistorial = new javax.swing.JScrollPane();
         PanelHistorialContainerTable = new javax.swing.JPanel();
         lblTituloHistorial = new javax.swing.JLabel();
+        txtFechaFiltrado = new javax.swing.JFormattedTextField();
         jPanel4 = new javax.swing.JPanel();
         PanelStockBajoTable = new javax.swing.JPanel();
         jScrollPane1 = new javax.swing.JScrollPane();
         tableStockBajo = new javax.swing.JTable();
         lblStockBajoTable = new javax.swing.JLabel();
+        cbxFiltro = new javax.swing.JComboBox<>();
 
-        lb.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
-        lb.setText("Dashboard");
+        lbDashboard.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        lbDashboard.setText("Dashboard");
 
         lblVentasTotales.setText("Ventas Totales");
 
@@ -316,14 +386,14 @@ public class FormDashboard extends javax.swing.JPanel {
         TablaVentas.getTableHeader().setReorderingAllowed(false);
         scroll.setViewportView(TablaVentas);
 
-        label7.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
-        label7.setText("Detalle de Ventas");
+        lblDetalleVenta.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        lblDetalleVenta.setText("Detalle de Ventas");
 
         javax.swing.GroupLayout PanelTablaVentasLayout = new javax.swing.GroupLayout(PanelTablaVentas);
         PanelTablaVentas.setLayout(PanelTablaVentasLayout);
         PanelTablaVentasLayout.setHorizontalGroup(
             PanelTablaVentasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(label7, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(lblDetalleVenta, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, PanelTablaVentasLayout.createSequentialGroup()
                 .addGap(17, 17, 17)
                 .addComponent(scroll, javax.swing.GroupLayout.DEFAULT_SIZE, 936, Short.MAX_VALUE)
@@ -333,9 +403,9 @@ public class FormDashboard extends javax.swing.JPanel {
             PanelTablaVentasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, PanelTablaVentasLayout.createSequentialGroup()
                 .addGap(20, 20, 20)
-                .addComponent(label7)
+                .addComponent(lblDetalleVenta)
                 .addGap(20, 20, 20)
-                .addComponent(scroll, javax.swing.GroupLayout.DEFAULT_SIZE, 263, Short.MAX_VALUE)
+                .addComponent(scroll, javax.swing.GroupLayout.DEFAULT_SIZE, 412, Short.MAX_VALUE)
                 .addContainerGap())
         );
 
@@ -350,13 +420,6 @@ public class FormDashboard extends javax.swing.JPanel {
             .addGap(0, 232, Short.MAX_VALUE)
         );
 
-        cbxFiltro.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Hoy", "Ayer", "Última semana", "Último mes", "Último Trimestre", "Último año", "Año anterior" }));
-        cbxFiltro.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                cbxFiltroActionPerformed(evt);
-            }
-        });
-
         javax.swing.GroupLayout PanelVentasDiariasLayout = new javax.swing.GroupLayout(PanelVentasDiarias);
         PanelVentasDiarias.setLayout(PanelVentasDiariasLayout);
         PanelVentasDiariasLayout.setHorizontalGroup(
@@ -366,17 +429,11 @@ public class FormDashboard extends javax.swing.JPanel {
                     .addComponent(PanelVentasDiariasGrafico, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(PanelTablaVentas, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, PanelVentasDiariasLayout.createSequentialGroup()
-                .addGap(0, 0, Short.MAX_VALUE)
-                .addComponent(cbxFiltro, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(33, 33, 33))
         );
         PanelVentasDiariasLayout.setVerticalGroup(
             PanelVentasDiariasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, PanelVentasDiariasLayout.createSequentialGroup()
-                .addGap(20, 20, 20)
-                .addComponent(cbxFiltro, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(20, 20, 20)
+                .addGap(0, 0, 0)
                 .addComponent(PanelVentasDiariasGrafico, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(PanelTablaVentas, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
@@ -431,7 +488,7 @@ public class FormDashboard extends javax.swing.JPanel {
                 .addGap(20, 20, 20)
                 .addComponent(lblDetallePro)
                 .addGap(20, 20, 20)
-                .addComponent(scrollDetalle, javax.swing.GroupLayout.DEFAULT_SIZE, 557, Short.MAX_VALUE)
+                .addComponent(scrollDetalle, javax.swing.GroupLayout.DEFAULT_SIZE, 644, Short.MAX_VALUE)
                 .addGap(0, 0, 0))
         );
 
@@ -486,7 +543,7 @@ public class FormDashboard extends javax.swing.JPanel {
         );
         PanelHistorialContainerTableLayout.setVerticalGroup(
             PanelHistorialContainerTableLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 520, Short.MAX_VALUE)
+            .addGap(0, 607, Short.MAX_VALUE)
         );
 
         scrollHistorial.setViewportView(PanelHistorialContainerTable);
@@ -504,11 +561,10 @@ public class FormDashboard extends javax.swing.JPanel {
             PanelHistorialLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, PanelHistorialLayout.createSequentialGroup()
                 .addGap(20, 20, 20)
-                .addComponent(scrollHistorial)
+                .addComponent(scrollHistorial, javax.swing.GroupLayout.DEFAULT_SIZE, 601, Short.MAX_VALUE)
                 .addGap(20, 20, 20))
         );
 
-        lblTituloHistorial.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         lblTituloHistorial.setText("HISTORIAL VENTAS");
 
         javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
@@ -519,7 +575,10 @@ public class FormDashboard extends javax.swing.JPanel {
                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(jPanel3Layout.createSequentialGroup()
                         .addContainerGap()
-                        .addComponent(lblTituloHistorial, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addComponent(lblTituloHistorial, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGap(143, 143, 143)
+                        .addComponent(txtFechaFiltrado, javax.swing.GroupLayout.PREFERRED_SIZE, 235, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(69, 69, 69))
                     .addGroup(jPanel3Layout.createSequentialGroup()
                         .addGap(20, 20, 20)
                         .addComponent(PanelHistorial, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
@@ -528,9 +587,11 @@ public class FormDashboard extends javax.swing.JPanel {
         jPanel3Layout.setVerticalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel3Layout.createSequentialGroup()
-                .addGap(31, 31, 31)
-                .addComponent(lblTituloHistorial)
-                .addGap(18, 18, 18)
+                .addGap(28, 28, 28)
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(lblTituloHistorial)
+                    .addComponent(txtFechaFiltrado, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(21, 21, 21)
                 .addComponent(PanelHistorial, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addGap(0, 0, 0))
         );
@@ -580,7 +641,7 @@ public class FormDashboard extends javax.swing.JPanel {
                 .addGap(20, 20, 20)
                 .addComponent(lblStockBajoTable)
                 .addGap(20, 20, 20)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 549, Short.MAX_VALUE)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 636, Short.MAX_VALUE)
                 .addGap(0, 0, 0))
         );
 
@@ -603,6 +664,13 @@ public class FormDashboard extends javax.swing.JPanel {
 
         jTabbedPane1.addTab("Stock Bajo", jPanel4);
 
+        cbxFiltro.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Hoy", "Ayer", "Última semana", "Último mes", "Último trimestre", "Último año", "Año anterior" }));
+        cbxFiltro.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                cbxFiltroActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
         layout.setHorizontalGroup(
@@ -610,7 +678,7 @@ public class FormDashboard extends javax.swing.JPanel {
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(lb, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(lbDashboard, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addGroup(layout.createSequentialGroup()
                         .addGap(20, 20, 20)
                         .addComponent(PanelVentasTotales, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
@@ -623,19 +691,25 @@ public class FormDashboard extends javax.swing.JPanel {
                 .addGap(20, 20, 20)
                 .addComponent(jTabbedPane1)
                 .addGap(20, 20, 20))
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(cbxFiltro, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(31, 31, 31))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addGap(34, 34, 34)
-                .addComponent(lb)
+                .addComponent(lbDashboard)
                 .addGap(26, 26, 26)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                         .addComponent(PanelVentasTotales, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addComponent(PanelVentaHoy, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addComponent(PanelStockBajo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(46, 46, 46)
+                .addGap(18, 18, 18)
+                .addComponent(cbxFiltro, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jTabbedPane1)
                 .addGap(20, 20, 20))
         );
@@ -643,43 +717,27 @@ public class FormDashboard extends javax.swing.JPanel {
         layout.linkSize(javax.swing.SwingConstants.VERTICAL, new java.awt.Component[] {PanelStockBajo, PanelVentaHoy, PanelVentasTotales});
 
     }// </editor-fold>//GEN-END:initComponents
-    private LocalDate obtenerFechaInicio(String filtro) {
-        return switch (filtro) {
-            case "Hoy" ->
-                LocalDate.now();
-            case "Ayer" ->
-                LocalDate.now().minusDays(1);
-            case "Última semana" ->
-                LocalDate.now().minusWeeks(1);
-            case "Último mes" ->
-                LocalDate.now().minusMonths(1);
-            case "Último Trimestre" ->
-                LocalDate.now().minusMonths(3);
-            case "Último año" ->
-                LocalDate.now().minusYears(1);
-            case "Año anterior" ->
-                LocalDate.now().minusYears(1).withDayOfYear(1);
-            default ->
-                LocalDate.now();
-        };
-    }
 
-    private LocalDate obtenerFechaFin(String filtro) {
-        return switch (filtro) {
-            case "Hoy", "Ayer" ->
-                obtenerFechaInicio(filtro); // Misma fecha para un solo día
-            case "Última semana", "Último mes", "Último Trimestre", "Último año" ->
-                LocalDate.now();
-            case "Año anterior" ->
-                obtenerFechaInicio(filtro).plusYears(1).minusDays(1); // 31 de diciembre del año anterior
-            default ->
-                LocalDate.now();
-        };
-    }
+    //ComboBox orderna la Tabla - Detalle de Ventas, según la opcion que escoga.
 
-    private void actualizarTabla(List<Venta> ventas) {
+    private void cbxFiltroActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cbxFiltroActionPerformed
+        String filtro = cbxFiltro.getSelectedItem().toString();
+
+        List<Venta> ventasFiltradas = control.obtenerVentasPorRangoDeFechas(filtro);
+        List<DetalleVenta> detalleVentaFiltradas = control.obtenerDetalleVentasPorFiltrado(ventasFiltradas);
+
+        actualizarTablaDetalleVenta(ventasFiltradas);
+        actualizarTablaProductos(detalleVentaFiltradas);
+
+
+    }//GEN-LAST:event_cbxFiltroActionPerformed
+
+    private void actualizarTablaDetalleVenta(List<Venta> ventas) {
         DefaultTableModel modelo = (DefaultTableModel) TablaVentas.getModel();
         modelo.setRowCount(0); // Limpiar la tabla antes de actualizar
+
+        // Ordenar ventas por fecha (de más reciente a más antigua)
+        ventas.sort(Comparator.comparing(Venta::getFecha).reversed());
 
         for (Venta venta : ventas) {
             // Formatear la fecha para mostrar correctamente en la tabla
@@ -689,93 +747,21 @@ public class FormDashboard extends javax.swing.JPanel {
 
             modelo.addRow(new Object[]{fecha, totalVentas, cantidadProductos});
         }
-
     }
 
+    //Tabla - Detalle de Productos más vendidos. 
     private void actualizarTablaProductos(List<DetalleVenta> detalleVentas) {
-        DefaultTableModel modelo = (DefaultTableModel) TableDetalleProducto.getModel();
-        modelo.setRowCount(0); // Limpiar la tabla antes de actualizar
+        DefaultTableModel model = (DefaultTableModel) TableDetalleProducto.getModel();
+        model.setRowCount(0); // Limpiar tabla antes de insertar nuevos datos
 
-        // Mapa para acumular productos
-        Map<String, Object[]> productosAgrupados = new HashMap<>();
+        List<Object[]> resumenProductos = control.obtenerResumenProductos(detalleVentas);
 
-        for (DetalleVenta detalle : detalleVentas) {
-            String nombreProducto = detalle.getProducto().getNombre();
-            double precioUnitario = detalle.getPrecioUnitario();
-            int cantidadVendida = detalle.getCantidad();
-            String fechaUltimaVenta = detalle.getVenta().getFecha().toLocalDate().toString();
-
-            if (productosAgrupados.containsKey(nombreProducto)) {
-                // Si ya existe, sumar la cantidad y actualizar la fecha si es más reciente
-                Object[] valores = productosAgrupados.get(nombreProducto);
-                valores[1] = (int) valores[1] + cantidadVendida; // Sumar cantidad
-                valores[3] = (double) valores[3] + (precioUnitario * cantidadVendida); // Sumar total de ventas
-                if (fechaUltimaVenta.compareTo((String) valores[2]) > 0) {
-                    valores[2] = fechaUltimaVenta; // Actualizar fecha si es más reciente
-                }
-            } else {
-                // Si no existe, agregar un nuevo registro (precio unitario, cantidad, fecha, total ventas)
-                productosAgrupados.put(nombreProducto, new Object[]{precioUnitario, cantidadVendida, fechaUltimaVenta, precioUnitario * cantidadVendida});
-            }
+        for (Object[] fila : resumenProductos) {
+            model.addRow(fila);
         }
 
-        // ✅ Ordenar de mayor a menor según total de ventas (precio * cantidad)
-        List<Map.Entry<String, Object[]>> listaOrdenada = new ArrayList<>(productosAgrupados.entrySet());
-        listaOrdenada.sort((a, b) -> Double.compare((double) b.getValue()[3], (double) a.getValue()[3])); // Orden descendente
-
-        // Agregar los datos ordenados a la tabla
-        for (Map.Entry<String, Object[]> entry : listaOrdenada) {
-            String nombre = entry.getKey();
-            Object[] valores = entry.getValue();
-            modelo.addRow(new Object[]{nombre, valores[0], valores[1], valores[2], valores[3]});
-        }
-    }
-
-    private void cbxFiltroActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cbxFiltroActionPerformed
-        String filtro = cbxFiltro.getSelectedItem().toString();
-
-        LocalDate fechaInicio = obtenerFechaInicio(filtro);
-        LocalDate fechaFin = obtenerFechaFin(filtro);
-
-        List<Venta> ventasFiltradas = control.obtenerVentasPorRangoDeFechas(fechaInicio, fechaFin);
-
-        // Actualizar la tabla con los datos filtrados
-        actualizarTabla(ventasFiltradas);
-    }//GEN-LAST:event_cbxFiltroActionPerformed
-
-    private void CargarTablaStockBajo(List<Producto> productos) {
-        DefaultTableModel modelo = (DefaultTableModel) tableStockBajo.getModel();
-        modelo.setRowCount(0); // Limpiar la tabla antes de actualizar
-
-        for (Producto producto : productos) {
-            int stockActual = producto.getStock();
-            int stockMinimo;
-
-            // Determinar stock mínimo basado en el total de unidades
-            if (stockActual > 50) {
-                stockMinimo = (int) Math.ceil(producto.getStock() * 0.2); // 20% del stock total
-            } else if (stockActual >= 20) {
-                stockMinimo = (int) Math.ceil(producto.getStock() * 0.3); // 30% del stock total
-            } else {
-                stockMinimo = 5; // Mínimo fijo para productos con stock < 20
-            }
-
-            String estado;
-
-            // Determinar estado del stock
-            if (stockActual <= stockMinimo * 0.5) {
-                estado = "Crítico"; // Si es menor o igual al 50% del stock mínimo
-            } else if (stockActual <= stockMinimo) {
-                estado = "Bajo"; // Si está en el rango del stock mínimo
-            } else {
-                continue; // No agregar si tiene suficiente stock
-            }
-
-            // Agregar fila a la tabla con los datos filtrados
-            modelo.addRow(new Object[]{producto.getNombre(), stockActual, stockMinimo, estado});
-        }
-        lblStock.setText(String.valueOf(tableStockBajo.getRowCount()));
-        System.out.println("Productos con bajo stock cargados en la tabla: " + modelo.getRowCount());
+        // 🔹 Pasamos los datos al gráfico
+        agregarGraficoProductosMasVendidos(resumenProductos);
     }
 
     private void add(List<DetalleVenta> detalleVentas) {
@@ -879,6 +865,41 @@ public class FormDashboard extends javax.swing.JPanel {
         lblHoyvsAyer.setText(porcentajeTexto);
     }
 
+    // Tabla Stock Bajo - Muestra los productos que tenga poco Stock
+    private void CargarTablaStockBajo(List<Producto> productos) {
+        DefaultTableModel modelo = (DefaultTableModel) tableStockBajo.getModel();
+        modelo.setRowCount(0); // Limpiar la tabla antes de actualizar
+
+        for (Producto producto : productos) {
+            int stockActual = producto.getStock();
+            int stockMinimo;
+
+            // Determinar stock mínimo basado en el total de unidades
+            if (stockActual > 50) {
+                stockMinimo = (int) Math.ceil(producto.getStock() * 0.2); // 20% del stock total
+            } else if (stockActual >= 20) {
+                stockMinimo = (int) Math.ceil(producto.getStock() * 0.3); // 30% del stock total
+            } else {
+                stockMinimo = 5; // Mínimo fijo para productos con stock < 20
+            }
+
+            String estado;
+
+            // Determinar estado del stock
+            if (stockActual <= stockMinimo * 0.5) {
+                estado = "Crítico"; // Si es menor o igual al 50% del stock mínimo
+            } else if (stockActual <= stockMinimo) {
+                estado = "Bajo"; // Si está en el rango del stock mínimo
+            } else {
+                continue; // No agregar si tiene suficiente stock
+            }
+
+            // Agregar fila a la tabla con los datos filtrados
+            modelo.addRow(new Object[]{producto.getNombre(), stockActual, stockMinimo, estado});
+        }
+        lblStock.setText(String.valueOf(tableStockBajo.getRowCount()));
+
+    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JPanel PanelGraficoBarras;
@@ -902,10 +923,10 @@ public class FormDashboard extends javax.swing.JPanel {
     private javax.swing.JPanel jPanel4;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JTabbedPane jTabbedPane1;
-    private javax.swing.JLabel label7;
-    private javax.swing.JLabel lb;
+    private javax.swing.JLabel lbDashboard;
     private javax.swing.JLabel lblAtencion;
     private javax.swing.JLabel lblDetallePro;
+    private javax.swing.JLabel lblDetalleVenta;
     private javax.swing.JLabel lblFecha;
     private javax.swing.JLabel lblHoyvsAyer;
     private javax.swing.JLabel lblPrecioHoy;
@@ -922,5 +943,6 @@ public class FormDashboard extends javax.swing.JPanel {
     private javax.swing.JScrollPane scrollMasVendidos;
     private javax.swing.JTable tableStockBajo;
     private icon.TrendingUp trendingUp1;
+    private javax.swing.JFormattedTextField txtFechaFiltrado;
     // End of variables declaration//GEN-END:variables
 }

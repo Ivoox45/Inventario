@@ -12,6 +12,8 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.Persistence;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Root;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import logica.DetalleVenta;
 import logica.Venta;
@@ -174,6 +176,21 @@ public class DetalleVentaJpaController implements Serializable {
         try {
             return em.createQuery("SELECT d FROM DetalleVenta d WHERE d.venta.id = :idVenta", DetalleVenta.class)
                     .setParameter("idVenta", idVenta)
+                    .getResultList();
+        } finally {
+            em.close();
+        }
+    }
+
+    public List<DetalleVenta> obtenerDetalleVentasPorIdsVentas(List<Long> idsVentas) {
+        if (idsVentas == null || idsVentas.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        EntityManager em = getEntityManager();
+        try {
+            return em.createQuery("SELECT d FROM DetalleVenta d WHERE d.venta.id IN :ids", DetalleVenta.class)
+                    .setParameter("ids", idsVentas)
                     .getResultList();
         } finally {
             em.close();

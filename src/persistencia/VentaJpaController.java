@@ -19,6 +19,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import logica.DetalleVenta;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import logica.Venta;
 import persistencia.exceptions.IllegalOrphanException;
@@ -218,7 +219,6 @@ public class VentaJpaController implements Serializable {
             em.close();
         }
     }
-    
 
     public void ActualizarVenta(Venta venta) {
         EntityManager em = emf.createEntityManager();
@@ -234,32 +234,16 @@ public class VentaJpaController implements Serializable {
         }
     }
 
-    public List<Venta> obtenerVentasPorRangoDeFechas(LocalDate fechaInicio, LocalDate fechaFin) {
-        EntityManager em = emf.createEntityManager();
-        List<Venta> ventas = new ArrayList<>();
-
+    public List<Venta> filtrarPorFechas(Date fechaInicio, Date fechaFin) {
+        EntityManager em = getEntityManager();
         try {
-            // Convertir LocalDate a LocalDateTime (inicio y fin del día)
-            LocalDateTime inicioDateTime = fechaInicio.atStartOfDay();
-            LocalDateTime finDateTime = fechaFin.atTime(23, 59, 59); // Último segundo del día
-
-            Query query = em.createQuery(
-                    "SELECT v FROM Venta v WHERE v.fecha BETWEEN :inicio AND :fin",
-                    Venta.class
-            );
-            query.setParameter("inicio", inicioDateTime);
-            query.setParameter("fin", finDateTime);
-
-            ventas = query.getResultList();
-        } catch (Exception e) {
-            e.printStackTrace();
+            return em.createQuery("SELECT v FROM Venta v WHERE v.fecha BETWEEN :inicio AND :fin", Venta.class)
+                    .setParameter("inicio", fechaInicio.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                    .setParameter("fin", fechaFin.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                    .getResultList();
         } finally {
             em.close();
         }
-
-        return ventas;
     }
-    
-    
 
 }

@@ -1,8 +1,17 @@
 package logica;
 
+import java.text.SimpleDateFormat;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.TextStyle;
+import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -16,9 +25,8 @@ public class Controladora {
     ControladoraPersistencia controlPersis = new ControladoraPersistencia();
 
     public Venta AgregarVenta(Venta venta) {
-        // Guardar la venta en la BD (esto genera su ID automáticamente)
         controlPersis.AgregarVenta(venta);
-        return venta; // Retornar la venta con su ID ya generado
+        return venta;
     }
 
     public void AgregarDetalleVenta(Venta venta, Producto producto, int cantidad, double precioUnitario) {
@@ -100,8 +108,59 @@ public class Controladora {
         controlPersis.ActualizarVenta(nuevaVenta);
     }
 
-    public List<Venta> obtenerVentasPorRangoDeFechas(LocalDate fechaInicio, LocalDate fechaFin) {
-        return controlPersis.obtenerVentasPorRangoDeFechas(fechaInicio, fechaFin);
+    public List<Venta> obtenerVentasPorRangoDeFechas(String filtro) {
+        LocalDate hoy = LocalDate.now();
+        ZoneId zone = ZoneId.systemDefault();
+        LocalDateTime fechaInicio = null, fechaFin = null;
+
+        switch (filtro) {
+            case "Hoy" -> {
+                fechaInicio = hoy.atStartOfDay();
+                fechaFin = hoy.atTime(LocalTime.MAX);
+            }
+            case "Ayer" -> {
+                LocalDate ayer = hoy.minusDays(1);
+                fechaInicio = ayer.atStartOfDay();
+                fechaFin = ayer.atTime(LocalTime.MAX);
+            }
+            case "Última semana" -> {
+                fechaInicio = hoy.minusWeeks(1).atStartOfDay();
+                fechaFin = hoy.atTime(LocalTime.MAX);
+            }
+            case "Último mes" -> {
+                fechaInicio = hoy.minusMonths(1).atStartOfDay();
+                fechaFin = hoy.atTime(LocalTime.MAX);
+            }
+            case "Último trimestre" -> {
+                fechaInicio = hoy.minusMonths(3).withDayOfMonth(1).atStartOfDay();
+                fechaFin = hoy.atTime(LocalTime.MAX);
+            }
+            case "Último año" -> {
+                fechaInicio = hoy.minusYears(1).atStartOfDay();
+                fechaFin = hoy.atTime(LocalTime.MAX);
+            }
+            case "Año anterior" -> {
+                LocalDate primerDiaAnoAnterior = hoy.minusYears(1).with(TemporalAdjusters.firstDayOfYear());
+                LocalDate ultimoDiaAnoAnterior = hoy.minusYears(1).with(TemporalAdjusters.lastDayOfYear());
+                fechaInicio = primerDiaAnoAnterior.atStartOfDay();
+                fechaFin = ultimoDiaAnoAnterior.atTime(LocalTime.MAX);
+            }
+            default -> {
+                // Manejo de error si el filtro no coincide con ninguno de los casos
+                System.err.println("Error: Filtro desconocido -> " + filtro);
+                return Collections.emptyList(); // Devuelve una lista vacía en caso de error
+            }
+        }
+
+        // Convertir LocalDateTime a Date solo si no son null
+        if (fechaInicio == null || fechaFin == null) {
+            throw new IllegalStateException("Las fechas no pueden ser nulas");
+        }
+
+        Date inicio = Date.from(fechaInicio.atZone(zone).toInstant());
+        Date fin = Date.from(fechaFin.atZone(zone).toInstant());
+
+        return controlPersis.obtenerVentasPorRangoDeFechas(inicio, fin);
     }
 
     public Map<String, Integer> obtenerProductosMasVendidos() {
@@ -137,6 +196,64 @@ public class Controladora {
 
     public List<Venta> ObtenerVentas() {
         return controlPersis.obtenerTodasLasVentas();
+    }
+
+    public List<Object[]> obtenerResumenProductos(List<DetalleVenta> detalles) {
+        Map<Long, Object[]> resumenProductos = new HashMap<>();
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+
+        for (DetalleVenta detalle : detalles) {
+            Long idProducto = detalle.getProducto().getId();
+            String nombreProducto = detalle.getProducto().getNombre();
+            double precio = detalle.getProducto().getPrecio();
+            int cantidadVendida = detalle.getCantidad();
+            double totalRecaudado = precio * cantidadVendida; // Calculamos el total ganado por ese producto
+
+            // Convertir LocalDateTime a Date
+            LocalDateTime fechaVentaLocal = detalle.getVenta().getFecha();
+            ZonedDateTime zonedDateTime = fechaVentaLocal.atZone(ZoneId.systemDefault());
+            Date fechaVenta = Date.from(zonedDateTime.toInstant());
+
+            // Formatear la fecha en String
+            String fechaVentaStr = dateFormat.format(fechaVenta);
+
+            if (!resumenProductos.containsKey(idProducto)) {
+                resumenProductos.put(idProducto, new Object[]{nombreProducto, precio, cantidadVendida, totalRecaudado, fechaVentaStr});
+            } else {
+                Object[] datos = resumenProductos.get(idProducto);
+                datos[2] = (int) datos[2] + cantidadVendida; // Sumar unidades vendidas
+                datos[3] = (double) datos[3] + totalRecaudado; // Sumar total recaudado
+
+                // Comparar fechas y actualizar si es más reciente
+                Date fechaUltimaVenta = null;
+                try {
+                    fechaUltimaVenta = dateFormat.parse((String) datos[4]);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+                if (fechaUltimaVenta == null || fechaVenta.after(fechaUltimaVenta)) {
+                    datos[4] = fechaVentaStr;
+                }
+            }
+        }
+
+        // Convertir el mapa a lista
+        List<Object[]> listaResumen = new ArrayList<>(resumenProductos.values());
+
+        // Ordenar por total recaudado (índice 3 en el array), de mayor a menor
+        listaResumen.sort((o1, o2) -> Double.compare((double) o2[3], (double) o1[3]));
+
+        return listaResumen;
+    }
+
+    
+    public List<DetalleVenta> obtenerDetalleVentasPorFiltrado(List<Venta> ventasFiltradas) {
+        List<Long> idsVentas = ventasFiltradas.stream()
+                .map(Venta::getId)
+                .collect(Collectors.toList());
+
+        return controlPersis.obtenerDetalleVentasPorIdsVentas(idsVentas);
     }
 
 }

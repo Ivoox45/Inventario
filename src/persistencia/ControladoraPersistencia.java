@@ -1,5 +1,6 @@
 package persistencia;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 import logica.DetalleVenta;
@@ -80,6 +81,10 @@ public class ControladoraPersistencia {
 
     public List<DetalleVenta> obtenerDetalleVentasPorIdsVentas(List<Long> idsVentas) {
         return DetalleJpa.obtenerDetalleVentasPorIdsVentas(idsVentas);
+    }
+
+    public List<Venta> obtenerVentasPorRango(LocalDateTime fechaInicio, LocalDateTime fechaFin) {
+        return VentaJpa.obtenerVentasPorRango(fechaInicio, fechaFin);
     }
 
 }

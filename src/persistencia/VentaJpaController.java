@@ -246,4 +246,19 @@ public class VentaJpaController implements Serializable {
         }
     }
 
+    public List<Venta> obtenerVentasPorRango(LocalDateTime fechaInicio, LocalDateTime fechaFin) {
+        EntityManager em = getEntityManager();
+        try {
+            TypedQuery<Venta> query = em.createQuery(
+                    "SELECT v FROM Venta v WHERE v.fecha BETWEEN :fechaInicio AND :fechaFin ORDER BY v.fecha DESC",
+                    Venta.class
+            );
+            query.setParameter("fechaInicio", fechaInicio);
+            query.setParameter("fechaFin", fechaFin);
+            return query.getResultList();
+        } finally {
+            em.close();
+        }
+    }
+
 }

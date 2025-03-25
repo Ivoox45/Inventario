@@ -701,6 +701,9 @@
               </Properties>
             </Component>
             <Component class="javax.swing.JFormattedTextField" name="txtFechaFiltrado">
+              <Events>
+                <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="txtFechaFiltradoActionPerformed"/>
+              </Events>
             </Component>
           </SubComponents>
         </Container>

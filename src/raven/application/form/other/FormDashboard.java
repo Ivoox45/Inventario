@@ -3,11 +3,11 @@ package raven.application.form.other;
 import com.formdev.flatlaf.FlatClientProperties;
 import dialog.CardTable;
 import java.awt.BorderLayout;
-import java.awt.event.ActionEvent;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
@@ -24,10 +25,7 @@ import logica.DetalleVenta;
 import logica.Producto;
 import logica.Venta;
 import net.miginfocom.swing.MigLayout;
-import raven.datetime.component.date.DateEvent;
 import raven.datetime.component.date.DatePicker;
-import raven.datetime.component.date.DateSelectionAble;
-import raven.datetime.component.date.DateSelectionListener;
 import raven.menu.GraficoVenta;
 import raven.menu.GraficoVentasDetallado;
 import table.TableHeaderAlignment;
@@ -70,27 +68,77 @@ public class FormDashboard extends javax.swing.JPanel {
         scrollHistorial.getVerticalScrollBar().setUnitIncrement(20);
         scrollMasVendidos.getVerticalScrollBar().setUnitIncrement(20);
 
+        FechaSelección();
+
+    }
+
+    private void FechaSelección() {
+        // Configuración del DatePicker
         datePiker.setEditor(txtFechaFiltrado);
         datePiker.setDateSelectionMode(DatePicker.DateSelectionMode.BETWEEN_DATE_SELECTED);
         datePiker.setSeparator(" hasta ");
         datePiker.setUsePanelOption(true);
-        datePiker.setDateSelectionAble((LocalDate ld) -> !ld.isAfter(LocalDate.now()));
-        datePiker.addDateSelectionListener(new DateSelectionListener() {
-            @Override
-            public void dateSelected(DateEvent dateEvent) {
-                LocalDate[] dates = datePiker.getSelectedDateRange();
-                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+        datePiker.setDateSelectionAble(ld -> !ld.isAfter(LocalDate.now()));
 
-                if (dates != null && dates.length == 2) {
-                    String startDate = formatter.format(dates[0]);
-                    String endDate = formatter.format(dates[1]);
-                    System.out.println(startDate + " - " + endDate);
-                } else {
-                    System.out.println("Rango de fechas incompleto o no seleccionado.");
-                }
+        datePiker.addDateSelectionListener(dateEvent -> {
+            LocalDate[] dates = datePiker.getSelectedDateRange();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+
+            if (dates != null && dates.length == 2) {
+                String startDate = formatter.format(dates[0]);
+                String endDate = formatter.format(dates[1]);
+                String rangoFechas = startDate + " - " + endDate;
+
+                procesarRangoFechas(rangoFechas);
             }
         });
 
+        // Si ya hay un rango de fechas seleccionado en el campo de texto, procesarlo directamente
+        String rangoFechas = txtFechaFiltrado.getText();
+        if (!rangoFechas.isEmpty()) {
+            procesarRangoFechas(rangoFechas);
+        }
+    }
+
+// Método para procesar el rango de fechas y filtrar las ventas
+    private void procesarRangoFechas(String rangoFechas) {
+        if (rangoFechas.contains(" - ")) {
+            String[] fechas = rangoFechas.split(" - ");
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+
+            try {
+                LocalDateTime fechaInicio = LocalDate.parse(fechas[0], formatter).atStartOfDay();
+                LocalDateTime fechaFin = LocalDate.parse(fechas[1], formatter).atTime(23, 59, 59);
+
+                // Obtener ventas en el rango de fechas
+                List<Venta> ventasFiltradas = control.obtenerVentasPorRango(fechaInicio, fechaFin);
+
+                // Obtener detalles de cada venta
+                List<DetalleVenta> detallesFiltrados = ventasFiltradas.stream()
+                        .flatMap(venta -> venta.getDetallesVenta().stream())
+                        .collect(Collectors.toList());
+
+                // Si no hay ventas, limpiar la tabla y salir
+                if (detallesFiltrados.isEmpty()) {
+
+                    limpiarTabla(); // Método que limpia la tabla en la interfaz
+                    return;
+                }
+
+                // Actualizar la interfaz con los detalles filtrados
+                add(detallesFiltrados);
+
+            } catch (DateTimeParseException e) {
+                System.out.println("Error: Formato de fecha inválido.");
+            }
+        }
+    }
+
+// Método para limpiar la tabla si no hay ventas en el rango seleccionado
+    private void limpiarTabla() {
+        PanelHistorialContainerTable.removeAll();
+        PanelHistorialContainerTable.revalidate();
+        PanelHistorialContainerTable.repaint();
     }
 
     //Metodos para los Estilos de Paneles, Tablas, Scrolls y Colocacion de Graficos.
@@ -145,12 +193,11 @@ public class FormDashboard extends javax.swing.JPanel {
 
     private void actualizarDatosTablas() {
         tableStockBajo.getTableHeader().setDefaultRenderer(new TableHeaderAlignment(TablaVentas));
-        actualizarTablaProductos(control.ObtenerDetallesPorVentaFull());
+
+        //Agregar tablas en el historial de todos las ventas con filtrado
+        //Cargar Cards de Resumene de Ventas.
         CargarTablaStockBajo(control.obtenerProductos());
-        add(control.ObtenerDetallesPorVentaFull());
         obtenerTotalRangoPrecio(control.ObtenerVentas());
-        obtenerTotalVentasHoy(control.ObtenerVentas());
-        obtenerTotalVentasAyer(control.ObtenerVentas());
         actualizarVentasHoy(control.ObtenerVentas());
     }
 
@@ -567,6 +614,12 @@ public class FormDashboard extends javax.swing.JPanel {
 
         lblTituloHistorial.setText("HISTORIAL VENTAS");
 
+        txtFechaFiltrado.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtFechaFiltradoActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
         jPanel3.setLayout(jPanel3Layout);
         jPanel3Layout.setHorizontalGroup(
@@ -732,6 +785,11 @@ public class FormDashboard extends javax.swing.JPanel {
 
     }//GEN-LAST:event_cbxFiltroActionPerformed
 
+    private void txtFechaFiltradoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtFechaFiltradoActionPerformed
+
+
+    }//GEN-LAST:event_txtFechaFiltradoActionPerformed
+
     private void actualizarTablaDetalleVenta(List<Venta> ventas) {
         DefaultTableModel modelo = (DefaultTableModel) TablaVentas.getModel();
         modelo.setRowCount(0); // Limpiar la tabla antes de actualizar
@@ -765,25 +823,37 @@ public class FormDashboard extends javax.swing.JPanel {
     }
 
     private void add(List<DetalleVenta> detalleVentas) {
-        // Agrupar los detalles por venta
-        Map<Venta, List<DetalleVenta>> ventasMap = new HashMap<>();
-
-        for (DetalleVenta detalle : detalleVentas) {
-            ventasMap.computeIfAbsent(detalle.getVenta(), k -> new ArrayList<>()).add(detalle);
+        // Si la lista es nula o está vacía, limpiar la tabla y salir
+        if (detalleVentas == null || detalleVentas.isEmpty()) {
+            System.out.println("No hay detalles de ventas para mostrar.");
+            limpiarTabla();
+            return;
         }
 
         // Limpiar el panel antes de agregar los nuevos datos
         PanelHistorialContainerTable.removeAll();
 
-        // Ordenar las ventas de más reciente a más antigua
-        List<Map.Entry<Venta, List<DetalleVenta>>> ventasOrdenadas = ventasMap.entrySet().stream()
-                .sorted((v1, v2) -> v2.getKey().getFecha().compareTo(v1.getKey().getFecha())) // Orden descendente
+        // Agrupar los detalles por ID de venta
+        Map<Long, List<DetalleVenta>> ventasMap = new HashMap<>();
+
+        for (DetalleVenta detalle : detalleVentas) {
+            Long idVenta = detalle.getVenta().getId(); // Obtener ID de venta como Long
+            ventasMap.computeIfAbsent(idVenta, k -> new ArrayList<>()).add(detalle);
+        }
+
+        // Ordenar las ventas por fecha de más reciente a más antigua
+        List<Map.Entry<Long, List<DetalleVenta>>> ventasOrdenadas = ventasMap.entrySet().stream()
+                .sorted((v1, v2) -> v2.getValue().get(0).getVenta().getFecha()
+                .compareTo(v1.getValue().get(0).getVenta().getFecha())) // Orden descendente
                 .toList();
 
-        // Crear un CardTable por cada venta en orden
-        for (Map.Entry<Venta, List<DetalleVenta>> entry : ventasOrdenadas) {
-            CardTable cardTable = new CardTable(entry.getValue()); // Crear tarjeta con los detalles de la venta
-            cardTable.actualizarTabla(entry.getValue()); // Llenar la tabla con los datos
+        // Crear y agregar un CardTable para cada venta
+        for (Map.Entry<Long, List<DetalleVenta>> entry : ventasOrdenadas) {
+            List<DetalleVenta> detalles = entry.getValue();
+
+            // Crear CardTable con la lista de detalles
+            CardTable cardTable = new CardTable(detalles);
+            cardTable.actualizarTabla(detalles); // Llenar la tabla con los datos
             PanelHistorialContainerTable.add(cardTable); // Agregar al panel
         }
 

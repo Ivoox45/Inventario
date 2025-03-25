@@ -7,6 +7,8 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.time.format.TextStyle;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
@@ -247,13 +249,29 @@ public class Controladora {
         return listaResumen;
     }
 
-    
     public List<DetalleVenta> obtenerDetalleVentasPorFiltrado(List<Venta> ventasFiltradas) {
         List<Long> idsVentas = ventasFiltradas.stream()
                 .map(Venta::getId)
                 .collect(Collectors.toList());
 
         return controlPersis.obtenerDetalleVentasPorIdsVentas(idsVentas);
+    }
+
+    public List<Venta> obtenerVentasPorRango(LocalDateTime fechaInicio, LocalDateTime fechaFin) {
+        if (fechaInicio == null || fechaFin == null) {
+            System.out.println("Error: Fechas inválidas.");
+            return new ArrayList<>();
+        }
+
+        // Obtener la zona horaria del sistema
+        ZoneId zone = ZoneId.systemDefault();
+
+        // Convertir LocalDateTime a Date para la consulta en la persistencia
+        Date inicio = Date.from(fechaInicio.atZone(zone).toInstant());
+        Date fin = Date.from(fechaFin.atZone(zone).toInstant());
+
+        // Llamar al método de persistencia con Date
+        return controlPersis.obtenerVentasPorRangoDeFechas(inicio, fin);
     }
 
 }
